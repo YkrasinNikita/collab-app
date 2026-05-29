@@ -1,0 +1,19 @@
+FROM node:20-alpine
+WORKDIR /app
+
+# Принимаем аргументы сборки
+ARG AUTH_SERVICE_URL
+ARG DOCUMENTS_SERVICE_URL
+ARG COLLABORATION_SERVICE_URL
+
+# Делаем их переменными окружения на время сборки
+ENV AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+ENV DOCUMENTS_SERVICE_URL=${DOCUMENTS_SERVICE_URL}
+ENV COLLABORATION_SERVICE_URL=${COLLABORATION_SERVICE_URL}
+
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+EXPOSE 3000
+CMD ["npm", "start"]

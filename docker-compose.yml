@@ -1,0 +1,70 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  auth-service:
+    build: ./auth-service
+    container_name: auth-service
+    ports:
+      - "4001:4001"
+    env_file:
+      - ./auth-service/.env
+    environment:
+      - PORT=4001
+      - MONGO_URI=mongodb://mongodb:27017/auth-db
+    depends_on:
+      - mongodb
+
+  documents-service:
+    build: ./documents-service
+    container_name: documents-service
+    ports:
+      - "4002:4002"
+    env_file:
+      - ./documents-service/.env
+    environment:
+      - PORT=4002
+      - MONGO_URI=mongodb://mongodb:27017/documents-db
+    depends_on:
+      - mongodb
+
+  collaboration-service:
+    build: ./collaboration-service
+    container_name: collaboration-service
+    ports:
+      - "4003:4003"
+    env_file:
+      - ./collaboration-service/.env
+    environment:
+      - PORT=4003
+      - MONGO_URI=mongodb://mongodb:27017/collaboration-db
+      - DOCUMENTS_SERVICE_URL=http://documents-service:4002
+    depends_on:
+      - mongodb
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - AUTH_SERVICE_URL=http://auth-service:4001
+        - DOCUMENTS_SERVICE_URL=http://documents-service:4002
+        - COLLABORATION_SERVICE_URL=http://collaboration-service:4003
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - AUTH_SERVICE_URL=http://auth-service:4001
+      - DOCUMENTS_SERVICE_URL=http://documents-service:4002
+      - COLLABORATION_SERVICE_URL=http://collaboration-service:4003
+    depends_on:
+      - auth-service
+      - documents-service
+      - collaboration-service
+
+volumes:
+  mongo-data:

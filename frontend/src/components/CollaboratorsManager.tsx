@@ -19,6 +19,7 @@ interface CollaboratorsManagerProps {
   documentType: string;
   ownerId: string;
   currentUserId: string;
+  refreshTrigger?: number;
 }
 
 const permissionLabels: Record<string, string> = {
@@ -32,6 +33,7 @@ export default function CollaboratorsManager({
   documentType,
   ownerId,
   currentUserId,
+  refreshTrigger = 0,
 }: CollaboratorsManagerProps) {
   const [shares, setShares] = useState<ShareEntry[]>([]);
   const [users, setUsers] = useState<Map<string, UserInfo>>(new Map());
@@ -75,12 +77,12 @@ export default function CollaboratorsManager({
       setLoading(false);
     };
     load();
-  }, [documentId]);
+  }, [documentId, refreshTrigger]); // добавлена зависимость refreshTrigger
 
   const handleRoleChange = async (shareId: string, newPermission: string) => {
     if (!isOwner) return;
     await api.put(`/shares/${shareId}`, { permission: newPermission });
-    fetchShares();
+    fetchShares(); // локально обновим, но также сокет обновит всех
   };
 
   const handleRemove = async (shareId: string) => {
@@ -94,14 +96,12 @@ export default function CollaboratorsManager({
   return (
     <div className="mt-4 border p-4 rounded">
       <h3 className="font-semibold mb-2">Участники</h3>
-      {/* Владелец */}
       <div className="flex items-center gap-2 mb-2 py-1 border-b">
         <span className="text-sm font-medium">
           {owner ? `${owner.name} (${owner.email})` : 'Владелец'}
         </span>
         <span className="text-sm text-gray-500">(владелец)</span>
       </div>
-      {/* Остальные участники */}
       {shares.length === 0 && <p className="text-gray-500 text-sm">Нет других участников</p>}
       {shares.map((share) => {
         const user = users.get(share.sharedWith);
@@ -116,7 +116,7 @@ export default function CollaboratorsManager({
                 <select
                   value={share.permission}
                   onChange={(e) => handleRoleChange(share._id, e.target.value)}
-                  className="border p-1 rounded text-sm"
+                  className="border p-1 rounded text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 border-gray-300 dark:border-gray-600"
                 >
                   <option value="view">Просмотр</option>
                   <option value="comment">Комментирование</option>

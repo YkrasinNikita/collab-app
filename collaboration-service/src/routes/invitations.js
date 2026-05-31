@@ -12,7 +12,9 @@ const DOCS_URL = process.env.DOCUMENTS_SERVICE_URL || 'http://documents-service:
 router.post('/', async (req, res) => {
   try {
     const { documentId, documentType, toUser, permission } = req.body;
-    if (!documentId || !documentType || !toUser) return res.status(400).json({ message: 'Missing fields' });
+    if (!documentId || !documentType || !toUser) {
+      return res.status(400).json({ message: 'Обязательные поля: documentId, documentType, toUser' });
+    }
     const exist = await Invitation.findOne({ documentId, documentType, toUser, status: 'pending' });
     if (exist) return res.status(400).json({ message: 'Приглашение уже отправлено' });
 
@@ -23,15 +25,15 @@ router.post('/', async (req, res) => {
       });
       docTitle = docRes.data.title;
     } catch (e) {
-      logger.error({ e }, 'Could not fetch document title');
+      logger.error('Не удалось получить название документа');
     }
 
     const inv = new Invitation({ documentId, documentType, documentTitle: docTitle, fromUser: req.userId, toUser, permission });
     await inv.save();
     res.status(201).json(inv);
   } catch (err) {
-    logger.error({ err }, 'Create invitation error');
-    res.status(500).json({ message: err.message });
+    logger.error({ err }, 'Ошибка создания приглашения');
+    res.status(500).json({ message: 'Ошибка при отправке приглашения' });
   }
 });
 
@@ -40,8 +42,8 @@ router.get('/inbox', async (req, res) => {
     const invites = await Invitation.find({ toUser: req.userId, status: 'pending' }).sort('-createdAt');
     res.json(invites);
   } catch (err) {
-    logger.error({ err }, 'Get inbox error');
-    res.status(500).json({ message: err.message });
+    logger.error({ err }, 'Ошибка получения приглашений');
+    res.status(500).json({ message: 'Ошибка при загрузке приглашений' });
   }
 });
 
@@ -53,7 +55,7 @@ router.put('/:id', async (req, res) => {
       { status },
       { new: true }
     );
-    if (!inv) return res.status(404).json({ message: 'Not found' });
+    if (!inv) return res.status(404).json({ message: 'Приглашение не найдено' });
     if (status === 'accepted') {
       await new Share({
         documentId: inv.documentId,
@@ -65,8 +67,8 @@ router.put('/:id', async (req, res) => {
     }
     res.json(inv);
   } catch (err) {
-    logger.error({ err }, 'Update invitation error');
-    res.status(500).json({ message: err.message });
+    logger.error({ err }, 'Ошибка обработки приглашения');
+    res.status(500).json({ message: 'Ошибка при обработке приглашения' });
   }
 });
 

@@ -13,8 +13,8 @@ router.post('/', async (req, res) => {
     await share.save();
     res.status(201).json(share);
   } catch (err) {
-    logger.error({ err }, 'Create share error');
-    res.status(500).json({ message: err.message });
+    logger.error({ err }, 'Ошибка создания доступа');
+    res.status(500).json({ message: 'Ошибка при предоставлении доступа' });
   }
 });
 
@@ -23,8 +23,8 @@ router.get('/document/:documentId', async (req, res) => {
     const shares = await Share.find({ documentId: req.params.documentId });
     res.json(shares);
   } catch (err) {
-    logger.error({ err }, 'Get shares error');
-    res.status(500).json({ message: err.message });
+    logger.error({ err }, 'Ошибка получения списка участников');
+    res.status(500).json({ message: 'Ошибка при получении списка участников' });
   }
 });
 
@@ -45,8 +45,8 @@ router.get('/check/:documentId', async (req, res) => {
     }
     res.json({ permission: share.permission });
   } catch (err) {
-    logger.error({ err }, 'Check share error');
-    res.status(500).json({ message: err.message });
+    logger.error({ err }, 'Ошибка проверки прав');
+    res.status(500).json({ message: 'Ошибка при проверке прав доступа' });
   }
 });
 
@@ -55,8 +55,8 @@ router.get('/my', async (req, res) => {
     const shares = await Share.find({ sharedWith: req.userId }).select('documentId documentType permission');
     res.json(shares);
   } catch (err) {
-    logger.error({ err }, 'Get my shares error');
-    res.status(500).json({ message: err.message });
+    logger.error({ err }, 'Ошибка получения своих доступов');
+    res.status(500).json({ message: 'Ошибка при получении ваших доступов' });
   }
 });
 
@@ -68,22 +68,25 @@ router.put('/:id', async (req, res) => {
       { permission },
       { new: true }
     );
-    if (!share) return res.status(404).json({ message: 'Share not found or not owner' });
+    if (!share) return res.status(404).json({ message: 'Доступ не найден или вы не владелец' });
+    req.io.to(share.documentId).emit('participants_updated');
     res.json(share);
   } catch (err) {
-    logger.error({ err }, 'Update share error');
-    res.status(500).json({ message: err.message });
+    logger.error({ err }, 'Ошибка изменения прав');
+    res.status(500).json({ message: 'Ошибка при изменении прав доступа' });
   }
 });
 
 router.delete('/:id', async (req, res) => {
   try {
     const share = await Share.findOneAndDelete({ _id: req.params.id, ownerId: req.userId });
-    if (!share) return res.status(404).json({ message: 'Share not found or not owner' });
-    res.json({ message: 'Access removed' });
+    if (!share) return res.status(404).json({ message: 'Доступ не найден или вы не владелец' });
+    req.io.to(share.documentId).emit('participants_updated');
+    req.io.to(share.documentId).emit('kicked_from_document', { userId: share.sharedWith, documentId: share.documentId });
+    res.json({ message: 'Доступ удалён' });
   } catch (err) {
-    logger.error({ err }, 'Delete share error');
-    res.status(500).json({ message: err.message });
+    logger.error({ err }, 'Ошибка удаления доступа');
+    res.status(500).json({ message: 'Ошибка при удалении доступа' });
   }
 });
 

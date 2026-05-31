@@ -10,8 +10,8 @@ router.get('/:documentId', async (req, res) => {
     const comments = await Comment.find({ documentId: req.params.documentId }).sort('createdAt');
     res.json(comments);
   } catch (err) {
-    logger.error({ err }, 'Get comments error');
-    res.status(500).json({ message: err.message });
+    logger.error({ err }, 'Ошибка получения комментариев');
+    res.status(500).json({ message: 'Ошибка при загрузке комментариев' });
   }
 });
 
@@ -20,14 +20,14 @@ router.post('/:documentId', async (req, res) => {
     const comment = new Comment({
       documentId: req.params.documentId,
       userId: req.userId,
-      userName: req.body.userName || 'Anonymous',
+      userName: req.body.userName || 'Аноним',
       text: req.body.text,
     });
     await comment.save();
     res.status(201).json(comment);
   } catch (err) {
-    logger.error({ err }, 'Add comment error');
-    res.status(500).json({ message: err.message });
+    logger.error({ err }, 'Ошибка добавления комментария');
+    res.status(500).json({ message: 'Ошибка при добавлении комментария' });
   }
 });
 

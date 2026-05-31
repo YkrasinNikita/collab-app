@@ -2,6 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
+const logger = require('../logger');
 
 const router = express.Router();
 
@@ -33,7 +34,7 @@ router.post('/register', async (req, res) => {
       user: { id: user._id, email: user.email, name: user.name },
     });
   } catch (err) {
-    console.error('Registration error:', err);
+    logger.error({ err }, 'Registration error');
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
@@ -60,7 +61,7 @@ router.post('/login', async (req, res) => {
       user: { id: user._id, email: user.email, name: user.name },
     });
   } catch (err) {
-    console.error('Login error:', err);
+    logger.error({ err }, 'Login error');
     res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
@@ -84,7 +85,7 @@ router.post('/refresh', async (req, res) => {
     });
     res.json({ accessToken: tokens.accessToken });
   } catch (err) {
-    console.error('Refresh error:', err);
+    logger.error({ err }, 'Refresh error');
     res.status(401).json({ message: 'Invalid refresh token' });
   }
 });
@@ -102,15 +103,15 @@ router.get('/me', authMiddleware, async (req, res) => {
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user);
   } catch (err) {
+    logger.error({ err }, 'Profile error');
     res.status(500).json({ message: 'Server error' });
   }
 });
 
-// Обновить профиль (имя, email)
+// Обновить профиль
 router.put('/me', authMiddleware, async (req, res) => {
   try {
     const { name, email } = req.body;
-    // Проверка уникальности email, исключая текущего пользователя
     if (email) {
       const existing = await User.findOne({ email, _id: { $ne: req.userId } });
       if (existing) return res.status(400).json({ message: 'Email already in use' });
@@ -118,9 +119,12 @@ router.put('/me', authMiddleware, async (req, res) => {
     const update = {};
     if (name !== undefined) update.name = name;
     if (email !== undefined) update.email = email;
-    const user = await User.findByIdAndUpdate(req.userId, update, { new: true }).select('-password');
+    const user = await User.findByIdAndUpdate(req.userId, update, { new: true }).select(
+      '-password',
+    );
     res.json(user);
   } catch (err) {
+    logger.error({ err }, 'Update profile error');
     res.status(500).json({ message: err.message });
   }
 });
@@ -128,19 +132,17 @@ router.put('/me', authMiddleware, async (req, res) => {
 // Сменить пароль
 router.put('/me/password', authMiddleware, async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const { newPassword } = req.body;
     const user = await User.findById(req.userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
-    const isMatch = await user.comparePassword(currentPassword);
-    if (!isMatch) return res.status(400).json({ message: 'Текущий пароль неверен' });
     user.password = newPassword;
     await user.save();
     res.json({ message: 'Пароль изменён' });
   } catch (err) {
+    logger.error({ err }, 'Change password error');
     res.status(500).json({ message: err.message });
   }
 });
-
 // Проверка занятости email
 router.post('/check-email', async (req, res) => {
   try {
@@ -153,6 +155,7 @@ router.post('/check-email', async (req, res) => {
     const user = await User.findOne(query);
     res.json({ exists: !!user });
   } catch (err) {
+    logger.error({ err }, 'Check email error');
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -164,21 +167,25 @@ router.get('/search-users', authMiddleware, async (req, res) => {
   try {
     const users = await User.find({
       email: { $regex: q, $options: 'i' },
-      _id: { $ne: req.userId }
-    }).select('email name').limit(10);
-    res.json(users.map(u => ({ id: u._id, email: u.email, name: u.name })));
+      _id: { $ne: req.userId },
+    })
+      .select('email name')
+      .limit(10);
+    res.json(users.map((u) => ({ id: u._id, email: u.email, name: u.name })));
   } catch (err) {
+    logger.error({ err }, 'Search users error');
     res.status(500).json({ message: err.message });
   }
 });
 
-// Получить пользователя по ID (публичные данные)
+// Получить пользователя по ID
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select('_id email name');
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user);
   } catch (err) {
+    logger.error({ err }, 'Get user error');
     res.status(500).json({ message: err.message });
   }
 });

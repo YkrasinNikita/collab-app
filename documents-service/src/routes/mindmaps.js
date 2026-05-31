@@ -1,6 +1,7 @@
 const express = require('express');
 const auth = require('../middleware/auth');
 const MindMap = require('../models/MindMap');
+const logger = require('../logger');
 const router = express.Router();
 
 router.use(auth);
@@ -12,19 +13,30 @@ router.post('/', async (req, res) => {
     await map.save();
     res.status(201).json(map);
   } catch (err) {
+    logger.error({ err }, 'Create mindmap error');
     res.status(500).json({ message: err.message });
   }
 });
 
 router.get('/', async (req, res) => {
-  const maps = await MindMap.find({ owner: req.userId }).sort('-updatedAt').select('_id title updatedAt');
-  res.json(maps);
+  try {
+    const maps = await MindMap.find({ owner: req.userId }).sort('-updatedAt').select('_id title updatedAt');
+    res.json(maps);
+  } catch (err) {
+    logger.error({ err }, 'Get mindmaps error');
+    res.status(500).json({ message: err.message });
+  }
 });
 
 router.get('/:id', async (req, res) => {
-  const map = await MindMap.findById(req.params.id);
-  if (!map) return res.status(404).json({ message: 'Not found' });
-  res.json(map);
+  try {
+    const map = await MindMap.findById(req.params.id);
+    if (!map) return res.status(404).json({ message: 'Not found' });
+    res.json(map);
+  } catch (err) {
+    logger.error({ err }, 'Get mindmap error');
+    res.status(500).json({ message: err.message });
+  }
 });
 
 router.put('/:id', async (req, res) => {
@@ -37,14 +49,20 @@ router.put('/:id', async (req, res) => {
     if (!map) return res.status(404).json({ message: 'Not found' });
     res.json(map);
   } catch (err) {
+    logger.error({ err }, 'Update mindmap error');
     res.status(500).json({ message: err.message });
   }
 });
 
 router.delete('/:id', async (req, res) => {
-  const map = await MindMap.findOneAndDelete({ _id: req.params.id, owner: req.userId });
-  if (!map) return res.status(404).json({ message: 'Not found or not owner' });
-  res.json({ message: 'Deleted' });
+  try {
+    const map = await MindMap.findOneAndDelete({ _id: req.params.id, owner: req.userId });
+    if (!map) return res.status(404).json({ message: 'Not found or not owner' });
+    res.json({ message: 'Deleted' });
+  } catch (err) {
+    logger.error({ err }, 'Delete mindmap error');
+    res.status(500).json({ message: err.message });
+  }
 });
 
 router.post('/batch', async (req, res) => {
@@ -54,6 +72,7 @@ router.post('/batch', async (req, res) => {
     const maps = await MindMap.find({ _id: { $in: ids } }).select('_id title updatedAt');
     res.json(maps);
   } catch (err) {
+    logger.error({ err }, 'Batch mindmaps error');
     res.status(500).json({ message: err.message });
   }
 });

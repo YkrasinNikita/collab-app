@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
@@ -8,26 +8,31 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
   const router = useRouter();
+
+  // Принудительно отключаем тёмную тему на этой странице
+  useEffect(() => {
+    document.documentElement.classList.remove('dark');
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     try {
       const { data } = await api.post('/auth/login', { email, password });
       localStorage.setItem('accessToken', data.accessToken);
       router.push('/dashboard');
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Ошибка входа');
+      setError(err.response?.data?.message || 'Ошибка входа');
     }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md space-y-5"
-      >
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md space-y-5">
         <h1 className="text-3xl font-bold text-center text-gray-800">Вход</h1>
+        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
         <div>
           <label className="block text-sm font-medium text-gray-600 mb-1">Email</label>
           <input

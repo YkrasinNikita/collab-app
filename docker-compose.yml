@@ -15,6 +15,7 @@ services:
     env_file:
       - ./auth-service/.env
     environment:
+      - LOG_LEVEL=debug
       - PORT=4001
       - MONGO_URI=mongodb://mongodb:27017/auth-db
     depends_on:
@@ -28,6 +29,7 @@ services:
     env_file:
       - ./documents-service/.env
     environment:
+      - LOG_LEVEL=debug
       - PORT=4002
       - MONGO_URI=mongodb://mongodb:27017/documents-db
     depends_on:
@@ -41,6 +43,7 @@ services:
     env_file:
       - ./collaboration-service/.env
     environment:
+      - LOG_LEVEL=debug
       - PORT=4003
       - MONGO_URI=mongodb://mongodb:27017/collaboration-db
       - DOCUMENTS_SERVICE_URL=http://documents-service:4002
@@ -58,6 +61,7 @@ services:
     ports:
       - "3000:3000"
     environment:
+      - LOG_LEVEL=debug
       - AUTH_SERVICE_URL=http://auth-service:4001
       - DOCUMENTS_SERVICE_URL=http://documents-service:4002
       - COLLABORATION_SERVICE_URL=http://collaboration-service:4003

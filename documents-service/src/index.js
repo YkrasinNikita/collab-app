@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const documentRoutes = require('./routes/documents');
 const mindmapRoutes = require('./routes/mindmaps');
+const logger = require('./logger');
 
 const app = express();
 app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
@@ -14,7 +15,7 @@ app.use('/api/mindmaps', mindmapRoutes);
 const PORT = process.env.PORT || 4002;
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
-    console.log('Connected to MongoDB (documents)');
-    app.listen(PORT, () => console.log(`Documents service on port ${PORT}`));
+    logger.info('Connected to MongoDB (documents)');
+    app.listen(PORT, () => logger.info(`Documents service on port ${PORT}`));
   })
-  .catch(err => console.error(err));
+  .catch(err => logger.fatal(err));

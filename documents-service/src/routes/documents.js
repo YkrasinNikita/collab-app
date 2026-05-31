@@ -1,35 +1,43 @@
 const express = require('express');
 const auth = require('../middleware/auth');
 const Document = require('../models/Document');
+const logger = require('../logger');
 const router = express.Router();
 
 router.use(auth);
 
-// Создать заметку
 router.post('/', async (req, res) => {
   try {
     const doc = new Document({ ...req.body, owner: req.userId });
     await doc.save();
     res.status(201).json(doc);
   } catch (err) {
+    logger.error({ err }, 'Create document error');
     res.status(500).json({ message: err.message });
   }
 });
 
-// Получить все заметки текущего пользователя (владельца)
 router.get('/', async (req, res) => {
-  const docs = await Document.find({ owner: req.userId }).sort('-updatedAt').select('_id title updatedAt');
-  res.json(docs);
+  try {
+    const docs = await Document.find({ owner: req.userId }).sort('-updatedAt').select('_id title updatedAt');
+    res.json(docs);
+  } catch (err) {
+    logger.error({ err }, 'Get documents error');
+    res.status(500).json({ message: err.message });
+  }
 });
 
-// Получить одну заметку (любой авторизованный, проверка прав на фронтенде)
 router.get('/:id', async (req, res) => {
-  const doc = await Document.findById(req.params.id);
-  if (!doc) return res.status(404).json({ message: 'Not found' });
-  res.json(doc);
+  try {
+    const doc = await Document.findById(req.params.id);
+    if (!doc) return res.status(404).json({ message: 'Not found' });
+    res.json(doc);
+  } catch (err) {
+    logger.error({ err }, 'Get document error');
+    res.status(500).json({ message: err.message });
+  }
 });
 
-// Обновить заметку (разрешено всем авторизованным, контроль прав на фронтенде)
 router.put('/:id', async (req, res) => {
   try {
     const doc = await Document.findByIdAndUpdate(
@@ -40,18 +48,22 @@ router.put('/:id', async (req, res) => {
     if (!doc) return res.status(404).json({ message: 'Not found' });
     res.json(doc);
   } catch (err) {
+    logger.error({ err }, 'Update document error');
     res.status(500).json({ message: err.message });
   }
 });
 
-// Удалить заметку (только владелец)
 router.delete('/:id', async (req, res) => {
-  const doc = await Document.findOneAndDelete({ _id: req.params.id, owner: req.userId });
-  if (!doc) return res.status(404).json({ message: 'Not found or not owner' });
-  res.json({ message: 'Deleted' });
+  try {
+    const doc = await Document.findOneAndDelete({ _id: req.params.id, owner: req.userId });
+    if (!doc) return res.status(404).json({ message: 'Not found or not owner' });
+    res.json({ message: 'Deleted' });
+  } catch (err) {
+    logger.error({ err }, 'Delete document error');
+    res.status(500).json({ message: err.message });
+  }
 });
 
-// Batch-загрузка
 router.post('/batch', async (req, res) => {
   try {
     const { ids } = req.body;
@@ -59,6 +71,7 @@ router.post('/batch', async (req, res) => {
     const docs = await Document.find({ _id: { $in: ids } }).select('_id title updatedAt');
     res.json(docs);
   } catch (err) {
+    logger.error({ err }, 'Batch documents error');
     res.status(500).json({ message: err.message });
   }
 });

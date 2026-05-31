@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
@@ -15,6 +15,10 @@ export default function RegisterPage() {
   const [passwordMatch, setPasswordMatch] = useState<boolean | null>(null);
   const [errorMsg, setErrorMsg] = useState('');
   const router = useRouter();
+
+  useEffect(() => {
+    document.documentElement.classList.remove('dark');
+  }, []);
 
   const checkEmail = useCallback(async (email: string) => {
     if (!email) { setEmailStatus(null); return; }
@@ -75,6 +79,7 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md space-y-4">
         <h1 className="text-3xl font-bold text-center text-gray-800">Регистрация</h1>
+        {errorMsg && <p className="text-red-500 text-sm text-center">{errorMsg}</p>}
         <div>
           <label className="block text-sm font-medium text-gray-600 mb-1">Имя</label>
           <input
@@ -94,8 +99,8 @@ export default function RegisterPage() {
             required
           />
           {emailStatus === 'checking' && <span className="absolute right-2 top-9 text-gray-400 text-sm">⏳</span>}
-          {emailStatus === 'free' && <span className="absolute right-2 top-9 text-green-500 text-sm">✔ свободен</span>}
-          {emailStatus === 'taken' && <span className="absolute right-2 top-9 text-red-500 text-sm">✖ занят</span>}
+          {emailStatus === 'free' && <span className="absolute right-2 top-9 text-green-600 text-sm">✔ свободен</span>}
+          {emailStatus === 'taken' && <span className="absolute right-2 top-9 text-red-600 text-sm">✖ занят</span>}
         </div>
         <div className="relative">
           <label className="block text-sm font-medium text-gray-600 mb-1">Пароль</label>
@@ -123,12 +128,11 @@ export default function RegisterPage() {
             {showConfirm ? <FiEyeOff size={18} /> : <FiEye size={18} />}
           </button>
           {confirmPassword && (
-            <span className={`absolute right-10 top-9 text-sm ${passwordMatch ? 'text-green-500' : 'text-red-500'}`}>
+            <span className={`absolute right-10 top-9 text-sm ${passwordMatch ? 'text-green-600' : 'text-red-600'}`}>
               {passwordMatch ? '✔' : '✖'}
             </span>
           )}
         </div>
-        {errorMsg && <p className="text-red-500 text-sm">{errorMsg}</p>}
         <button
           type="submit"
           className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-2 rounded-lg font-semibold hover:shadow-lg transition"

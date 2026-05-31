@@ -24,7 +24,7 @@ router.post('/register', async (req, res) => {
     const tokens = generateTokens(user._id);
     res.cookie('refreshToken', tokens.refreshToken, {
       httpOnly: true,
-      secure: false, // в production true
+      secure: false,
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
@@ -95,14 +95,91 @@ router.post('/logout', (req, res) => {
   res.json({ message: 'Logged out' });
 });
 
-// Профиль (защищённый)
+// Профиль текущего пользователя
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.userId).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user);
   } catch (err) {
-    console.error('Profile error:', err);
     res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Обновить профиль (имя, email)
+router.put('/me', authMiddleware, async (req, res) => {
+  try {
+    const { name, email } = req.body;
+    // Проверка уникальности email, исключая текущего пользователя
+    if (email) {
+      const existing = await User.findOne({ email, _id: { $ne: req.userId } });
+      if (existing) return res.status(400).json({ message: 'Email already in use' });
+    }
+    const update = {};
+    if (name !== undefined) update.name = name;
+    if (email !== undefined) update.email = email;
+    const user = await User.findByIdAndUpdate(req.userId, update, { new: true }).select('-password');
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Сменить пароль
+router.put('/me/password', authMiddleware, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) return res.status(400).json({ message: 'Текущий пароль неверен' });
+    user.password = newPassword;
+    await user.save();
+    res.json({ message: 'Пароль изменён' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Проверка занятости email
+router.post('/check-email', async (req, res) => {
+  try {
+    const { email, excludeUserId } = req.body;
+    if (!email) return res.status(400).json({ message: 'Email required' });
+    const query = { email };
+    if (excludeUserId) {
+      query._id = { $ne: excludeUserId };
+    }
+    const user = await User.findOne(query);
+    res.json({ exists: !!user });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Поиск пользователей
+router.get('/search-users', authMiddleware, async (req, res) => {
+  const { q } = req.query;
+  if (!q || q.length < 2) return res.json([]);
+  try {
+    const users = await User.find({
+      email: { $regex: q, $options: 'i' },
+      _id: { $ne: req.userId }
+    }).select('email name').limit(10);
+    res.json(users.map(u => ({ id: u._id, email: u.email, name: u.name })));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// Получить пользователя по ID (публичные данные)
+router.get('/:id', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('_id email name');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 

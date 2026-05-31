@@ -9,6 +9,7 @@ import RichTextEditor from '@/components/RichTextEditor';
 import UserSearchInput from '@/components/UserSearchInput';
 import CollaboratorsManager from '@/components/CollaboratorsManager';
 import DOMPurify from 'dompurify';
+import { FiArrowLeft, FiTrash2, FiShare2, FiSend, FiUsers } from 'react-icons/fi';
 import type { Node, Edge } from '@xyflow/react';
 
 const MindMapEditor = dynamic(() => import('@/components/MindMapEditor'), { ssr: false });
@@ -210,23 +211,25 @@ export default function DocumentPage() {
   const canEdit = permission === 'edit';
 
   return (
-    <div className="max-w-6xl mx-auto p-4">
-      <div className="flex items-center gap-4 mb-4 relative z-20">
-        <button onClick={handleBack} className="text-blue-600 hover:underline">
-          ← Назад к списку
+    <div className="max-w-6xl mx-auto p-4 md:p-6">
+      <div className="flex items-center gap-4 mb-6 relative z-20">
+        <button onClick={handleBack} className="flex items-center gap-1 text-blue-600 hover:underline">
+          <FiArrowLeft /> Назад
         </button>
         {canEdit && (
-          <button onClick={() => setDeleteModalOpen(true)} className="text-red-600 hover:underline ml-auto">
-            Удалить
+          <button onClick={() => setDeleteModalOpen(true)} className="flex items-center gap-1 text-red-600 hover:underline ml-auto">
+            <FiTrash2 size={14} /> Удалить
           </button>
         )}
       </div>
+
+      {/* Заголовок */}
       <div className="mb-4">
         {canEdit ? (
           editingTitle ? (
             <input
               ref={titleInputRef}
-              className="text-2xl font-bold w-full border-b-2 border-blue-500 outline-none bg-transparent"
+              className="text-2xl font-bold w-full border-b-2 border-blue-500 outline-none bg-transparent dark:text-gray-100"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onBlur={saveTitle}
@@ -234,7 +237,7 @@ export default function DocumentPage() {
             />
           ) : (
             <h1
-              className="text-2xl font-bold cursor-pointer hover:bg-gray-100 rounded p-1"
+              className="text-2xl font-bold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded p-1"
               onClick={startEditingTitle}
             >
               {title}
@@ -244,6 +247,7 @@ export default function DocumentPage() {
           <h1 className="text-2xl font-bold">{title}</h1>
         )}
       </div>
+
       {canView ? (
         <>
           {type === 'document' ? (
@@ -254,8 +258,8 @@ export default function DocumentPage() {
                 editable={canEdit}
               />
               {canEdit && (
-                <div className="flex items-center gap-2 mt-2">
-                  <button onClick={handleSave} className="bg-blue-500 text-white px-4 py-2 rounded">
+                <div className="mt-3">
+                  <button onClick={handleSave} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
                     {saving ? 'Сохранение...' : 'Сохранить'}
                   </button>
                 </div>
@@ -270,8 +274,8 @@ export default function DocumentPage() {
                 editable={canEdit}
               />
               {canEdit && (
-                <div className="flex gap-2 mt-2">
-                  <button onClick={handleSave} className="bg-blue-500 text-white px-4 py-2 rounded">
+                <div className="mt-3">
+                  <button onClick={handleSave} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
                     {saving ? 'Сохранение...' : 'Сохранить'}
                   </button>
                 </div>
@@ -279,50 +283,63 @@ export default function DocumentPage() {
             </>
           )}
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            <button onClick={openShareModal} className="bg-green-500 text-white px-4 py-2 rounded">
-              Поделиться
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button onClick={openShareModal} className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
+              <FiShare2 size={16} /> Поделиться
             </button>
           </div>
 
           {canView && (
-            <CollaboratorsManager
-              documentId={id}
-              documentType={type}
-              ownerId={doc.owner}
-              currentUserId={currentUserId}
-            />
+            <div className="mt-6">
+              <h3 className="flex items-center gap-2 text-lg font-semibold mb-3">
+                <FiUsers /> Участники
+              </h3>
+              <CollaboratorsManager
+                documentId={id}
+                documentType={type}
+                ownerId={doc.owner}
+                currentUserId={currentUserId}
+              />
+            </div>
           )}
 
-          <div className="mt-6">
-            <h2 className="text-xl font-semibold mb-2">Комментарии</h2>
+          {/* Комментарии */}
+          <div className="mt-8">
+            <h2 className="text-lg font-semibold mb-3">Комментарии</h2>
             {canComment && (
-              <div className="flex gap-2 mb-3">
+              <div className="flex gap-2 mb-4">
                 <input
-                  className="flex-1 p-2 border rounded"
+                  className="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Ваш комментарий"
+                  placeholder="Ваш комментарий..."
                 />
-                <button onClick={addComment} className="bg-blue-500 text-white px-4 py-2 rounded">
-                  Отправить
+                <button onClick={addComment} className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+                  <FiSend size={16} />
                 </button>
               </div>
             )}
-            <div className="space-y-2">
+            <div className="space-y-3">
               {comments.map((c) => (
-                <div key={c._id} className="border-b py-1">
-                  <strong>{c.userName}</strong> ({new Date(c.createdAt).toLocaleString()}): {c.text}
+                <div key={c._id} className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium text-gray-700 dark:text-gray-300">{c.userName}</span>
+                    <span className="text-gray-400 dark:text-gray-500 text-xs">
+                      {new Date(c.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-gray-600 dark:text-gray-400 mt-1">{c.text}</p>
                 </div>
               ))}
             </div>
           </div>
 
+          {/* Модальные окна */}
           <Modal open={shareModalOpen} onClose={() => setShareModalOpen(false)} title="Пригласить пользователя">
             <UserSearchInput onSelect={(user) => setShareUser(user)} />
             {shareUser && <p className="text-sm mb-2">Выбран: {shareUser.email}</p>}
             <select
-              className="w-full border p-2 mb-4"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 mb-4 bg-transparent"
               value={sharePermission}
               onChange={(e) => setSharePermission(e.target.value)}
             >
@@ -331,20 +348,16 @@ export default function DocumentPage() {
               <option value="edit">Редактирование</option>
             </select>
             <div className="flex gap-2">
-              <button onClick={handleShare} disabled={!shareUser} className="flex-1 bg-blue-500 text-white p-2 rounded disabled:opacity-50">
-                Отправить приглашение
-              </button>
-              <button onClick={() => setShareModalOpen(false)} className="flex-1 bg-gray-300 p-2 rounded">
-                Отмена
-              </button>
+              <button onClick={handleShare} disabled={!shareUser} className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg disabled:opacity-50">Отправить приглашение</button>
+              <button onClick={() => setShareModalOpen(false)} className="flex-1 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 py-2 rounded-lg">Отмена</button>
             </div>
           </Modal>
 
           <Modal open={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="Удалить документ?">
-            <p className="mb-4">Это действие нельзя отменить.</p>
+            <p className="text-gray-600 dark:text-gray-300 mb-4">Это действие нельзя отменить.</p>
             <div className="flex gap-2">
-              <button onClick={confirmDelete} className="flex-1 bg-red-500 text-white p-2 rounded">Удалить</button>
-              <button onClick={() => setDeleteModalOpen(false)} className="flex-1 bg-gray-300 p-2 rounded">Отмена</button>
+              <button onClick={confirmDelete} className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg">Удалить</button>
+              <button onClick={() => setDeleteModalOpen(false)} className="flex-1 bg-gray-300 dark:bg-gray-600 hover:bg-gray-400 dark:hover:bg-gray-500 py-2 rounded-lg">Отмена</button>
             </div>
           </Modal>
 

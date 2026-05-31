@@ -1,12 +1,14 @@
 'use client';
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
+import { FiCheck, FiX } from 'react-icons/fi';
 
 interface Invitation {
   _id: string;
   documentId: string;
   documentType: string;
-  fromUser: { _id: string; email: string; name: string } | string; // может быть строкой или объектом
+  documentTitle?: string;
+  fromUser: { _id: string; email: string; name: string } | string;
   permission: string;
   createdAt: string;
 }
@@ -19,7 +21,7 @@ export default function InvitationsList() {
     try {
       const { data } = await api.get('/invitations/inbox');
       setInvites(data);
-    } catch (e) { console.error(e); }
+    } catch (e) {}
     setLoading(false);
   };
 
@@ -34,28 +36,28 @@ export default function InvitationsList() {
     }
   };
 
-  if (loading) return <p className="text-gray-500">Загрузка приглашений...</p>;
-  if (!invites.length) return <p className="text-gray-500">Нет новых приглашений</p>;
+  if (loading) return <p className="text-gray-500 dark:text-gray-400">Загрузка приглашений...</p>;
+  if (!invites.length) return <p className="text-gray-500 dark:text-gray-400">Нет новых приглашений</p>;
 
   return (
     <div className="space-y-3">
       {invites.map(inv => (
-        <div key={inv._id} className="border p-3 rounded flex justify-between items-center">
+        <div key={inv._id} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <p className="font-medium">Документ: {inv.documentId}</p>
-            <p className="text-sm text-gray-600">
+            <p className="font-medium text-gray-800 dark:text-gray-200">{inv.documentTitle || inv.documentId}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               Тип: {inv.documentType === 'document' ? 'Заметка' : 'Ментальная карта'} | Права: {inv.permission}
             </p>
             {typeof inv.fromUser === 'object' && inv.fromUser.name && (
-              <p className="text-sm">От: {inv.fromUser.name} ({inv.fromUser.email})</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">От: {inv.fromUser.name} ({inv.fromUser.email})</p>
             )}
           </div>
           <div className="flex gap-2">
-            <button onClick={() => handleAction(inv._id, 'accepted')} className="bg-green-500 text-white px-3 py-1 rounded">
-              Принять
+            <button onClick={() => handleAction(inv._id, 'accepted')} className="flex items-center gap-1 bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-lg text-sm">
+              <FiCheck size={14} /> Принять
             </button>
-            <button onClick={() => handleAction(inv._id, 'declined')} className="bg-red-500 text-white px-3 py-1 rounded">
-              Отклонить
+            <button onClick={() => handleAction(inv._id, 'declined')} className="flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-sm">
+              <FiX size={14} /> Отклонить
             </button>
           </div>
         </div>

@@ -17,6 +17,7 @@ import {
   Position,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { FiPlus, FiTrash2 } from 'react-icons/fi';
 
 interface MindMapEditorProps {
   initialNodes: Node[];
@@ -25,7 +26,7 @@ interface MindMapEditorProps {
   editable: boolean;
 }
 
-// Кастомный узел с динамическим размером при редактировании
+// Кастомный узел с динамическим размером и поддержкой тёмной темы
 function EditableNode({ data, id }: NodeProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [label, setLabel] = useState((data as any).label || '');
@@ -39,7 +40,6 @@ function EditableNode({ data, id }: NodeProps) {
   useEffect(() => {
     if (isEditing && editableRef.current) {
       editableRef.current.focus();
-      // Поместить курсор в конец текста
       const range = document.createRange();
       range.selectNodeContents(editableRef.current);
       range.collapse(false);
@@ -72,12 +72,14 @@ function EditableNode({ data, id }: NodeProps) {
 
   return (
     <div
-      className={`px-4 py-2 bg-white border-2 border-blue-400 rounded-lg shadow-md relative ${isEditing ? '' : 'cursor-pointer'}`}
+      className={`px-4 py-2 bg-white dark:bg-gray-700 border-2 border-blue-400 dark:border-blue-500 rounded-lg shadow-md relative ${
+        isEditing ? '' : 'cursor-pointer'
+      }`}
       style={{ minWidth: 80, maxWidth: isEditing ? undefined : 200 }}
       onDoubleClick={handleDoubleClick}
     >
-      <Handle type="target" position={Position.Top} />
-      <Handle type="source" position={Position.Bottom} />
+      <Handle type="target" position={Position.Top} className="!bg-blue-500" />
+      <Handle type="source" position={Position.Bottom} className="!bg-blue-500" />
       {isEditing ? (
         <span
           ref={editableRef}
@@ -85,13 +87,13 @@ function EditableNode({ data, id }: NodeProps) {
           suppressContentEditableWarning
           onBlur={finishEditing}
           onKeyDown={handleKeyDown}
-          className="text-sm font-medium outline-none inline-block whitespace-nowrap"
+          className="text-sm font-medium outline-none text-gray-800 dark:text-gray-200 inline-block whitespace-nowrap"
           style={{ minWidth: 20 }}
         >
           {label}
         </span>
       ) : (
-        <span className="text-sm font-medium">{label}</span>
+        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{label}</span>
       )}
     </div>
   );
@@ -186,25 +188,25 @@ export default function MindMapEditor({
   const nodeTypes = { editableNode: EditableNode };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       {editable && (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={addNode}
-            className="px-3 py-1 bg-green-500 text-white rounded hover:bg-green-600"
+            className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg shadow hover:shadow-md transition text-sm"
           >
-            + Добавить узел
+            <FiPlus size={14} /> Узел
           </button>
           <button
             onClick={deleteSelected}
             disabled={!selectedNodes.length && !selectedEdges.length}
-            className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50"
+            className="flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-red-500 to-rose-600 text-white rounded-lg shadow hover:shadow-md transition text-sm disabled:opacity-50"
           >
-            Удалить выделенное
+            <FiTrash2 size={14} /> Удалить
           </button>
         </div>
       )}
-      <div style={{ width: '100%', height: '600px', border: '1px solid #ccc', borderRadius: 8 }}>
+      <div className="w-full h-[500px] md:h-[600px] border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden bg-white dark:bg-gray-800">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -221,9 +223,9 @@ export default function MindMapEditor({
           nodesConnectable={editable}
           elementsSelectable={editable}
         >
-          <Controls />
-          <MiniMap />
-          <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+          <Controls className="!bg-white dark:!bg-gray-800 !border-gray-300 dark:!border-gray-600 !rounded-lg !shadow" />
+          <MiniMap className="!bg-gray-100 dark:!bg-gray-700 !rounded-lg !border-gray-300 dark:!border-gray-600" />
+          <Background variant={BackgroundVariant.Dots} gap={12} size={1} color="#9ca3af" />
         </ReactFlow>
       </div>
     </div>

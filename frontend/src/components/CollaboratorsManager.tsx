@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
+import { FiUser } from 'react-icons/fi';
 
 interface UserInfo {
   _id: string;
@@ -45,9 +46,7 @@ export default function CollaboratorsManager({
         try {
           const { data: user } = await api.get(`/auth/${userId}`);
           userMap.set(userId, user as UserInfo);
-        } catch (e) {
-          console.error(`Failed to load user ${userId}`, e);
-        }
+        } catch (e) {}
       })
     );
     setUsers(userMap);
@@ -57,9 +56,7 @@ export default function CollaboratorsManager({
     try {
       const { data } = await api.get(`/auth/${ownerId}`);
       setOwner(data as UserInfo);
-    } catch (e) {
-      console.error('Failed to load owner', e);
-    }
+    } catch (e) {}
   };
 
   useEffect(() => {
@@ -71,54 +68,47 @@ export default function CollaboratorsManager({
     load();
   }, [documentId]);
 
-  const handleRoleChange = async (shareId: string, newPermission: string) => {
-    if (!isOwner) return;
-    await api.put(`/shares/${shareId}`, { permission: newPermission });
-    fetchShares();
-  };
-
-  const handleRemove = async (shareId: string) => {
-    if (!isOwner) return;
-    await api.delete(`/shares/${shareId}`);
-    fetchShares();
-  };
-
-  if (loading) return <p className="text-gray-500">Загрузка участников...</p>;
+  if (loading) return <p className="text-gray-500 dark:text-gray-400 text-sm">Загрузка участников...</p>;
 
   return (
-    <div className="mt-4 border p-4 rounded">
-      <h3 className="font-semibold mb-2">Участники</h3>
-      <div className="flex items-center gap-4 mb-2 py-1 border-b">
-        <span className="text-sm font-medium">
-          {owner ? `${owner.name} (${owner.email})` : 'Владелец'}
-        </span>
-        <span className="text-sm text-gray-500">(владелец)</span>
+    <div className="space-y-2">
+      <div className="flex items-center gap-2 text-sm bg-gray-50 dark:bg-gray-800 p-2 rounded-lg">
+        <FiUser className="text-blue-500" size={14} />
+        <span className="font-medium">{owner ? `${owner.name} (${owner.email})` : 'Владелец'}</span>
+        <span className="text-gray-500 dark:text-gray-400">(владелец)</span>
       </div>
-      {shares.length === 0 && <p className="text-gray-500 text-sm">Нет других участников</p>}
       {shares.map((share) => {
         const user = users.get(share.sharedWith);
         return (
-          <div key={share._id} className="flex items-center gap-4 mb-2">
-            <span className="text-sm font-medium">
-              {user ? `${user.name} (${user.email})` : share.sharedWith.substring(0, 8) + '...'}
-            </span>
+          <div key={share._id} className="flex items-center justify-between bg-white dark:bg-gray-800 p-2 rounded-lg text-sm">
+            <div className="flex items-center gap-2">
+              <FiUser className="text-gray-400" size={14} />
+              <span>{user ? `${user.name} (${user.email})` : share.sharedWith.substring(0, 8) + '...'}</span>
+            </div>
             {isOwner ? (
-              <>
+              <div className="flex items-center gap-2">
                 <select
                   value={share.permission}
-                  onChange={(e) => handleRoleChange(share._id, e.target.value)}
-                  className="border p-1 rounded text-sm"
+                  onChange={(e) => {
+                    api.put(`/shares/${share._id}`, { permission: e.target.value }).then(fetchShares);
+                  }}
+                  className="border border-gray-300 dark:border-gray-600 rounded px-2 py-0.5 text-xs bg-transparent"
                 >
                   <option value="view">Просмотр</option>
                   <option value="comment">Комментирование</option>
                   <option value="edit">Редактирование</option>
                 </select>
-                <button onClick={() => handleRemove(share._id)} className="text-red-600 hover:underline text-sm">
+                <button
+                  onClick={() => {
+                    api.delete(`/shares/${share._id}`).then(fetchShares);
+                  }}
+                  className="text-red-600 hover:underline text-xs"
+                >
                   Удалить
                 </button>
-              </>
+              </div>
             ) : (
-              <span className="text-sm text-gray-500">({share.permission})</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">({share.permission})</span>
             )}
           </div>
         );

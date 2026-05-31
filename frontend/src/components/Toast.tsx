@@ -1,5 +1,6 @@
 'use client';
 import { useEffect } from 'react';
+import { FiCheckCircle, FiXCircle } from 'react-icons/fi';
 
 interface ToastProps {
   message: string | null;
@@ -16,8 +17,16 @@ export default function Toast({ message, onClose, duration = 3000 }: ToastProps)
   }, [message, onClose, duration]);
 
   if (!message) return null;
+
+  // Можно определять тип уведомления по наличию слова "Ошибка" и т.п., для простоты всегда успех
+  const isError = message.includes('Ошибка');
   return (
-    <div className="fixed top-4 right-4 z-50 bg-green-600 text-white px-4 py-2 rounded shadow-lg">
+    <div
+      className={`fixed bottom-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-white ${
+        isError ? 'bg-red-500' : 'bg-green-500'
+      }`}
+    >
+      {isError ? <FiXCircle size={20} /> : <FiCheckCircle size={20} />}
       {message}
     </div>
   );

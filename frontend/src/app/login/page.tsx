@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { FiEye, FiEyeOff } from 'react-icons/fi';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -21,39 +22,50 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded shadow-md w-96">
-        <h1 className="text-2xl mb-4 font-bold">Вход</h1>
-        <input
-          className="w-full mb-3 p-2 border rounded"
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <div className="relative mb-3">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md space-y-5"
+      >
+        <h1 className="text-3xl font-bold text-center text-gray-800">Вход</h1>
+        <div>
+          <label className="block text-sm font-medium text-gray-600 mb-1">Email</label>
+          <input
+            type="email"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div className="relative">
+          <label className="block text-sm font-medium text-gray-600 mb-1">Пароль</label>
           <input
             type={showPassword ? 'text' : 'password'}
-            className="w-full p-2 border rounded pr-10"
-            placeholder="Пароль"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
           />
           <button
             type="button"
-            className="absolute right-2 top-2 text-gray-600"
+            className="absolute right-3 top-9 text-gray-500"
             onClick={() => setShowPassword(!showPassword)}
           >
-            {showPassword ? '🙈' : '👁️'}
+            {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
           </button>
         </div>
-        <button type="submit" className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
+        <button
+          type="submit"
+          className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-2 rounded-lg font-semibold hover:shadow-lg transition"
+        >
           Войти
         </button>
-        <p className="mt-3 text-center">
-          Нет аккаунта? <a href="/register" className="text-blue-500">Зарегистрироваться</a>
+        <p className="text-center text-sm text-gray-500">
+          Нет аккаунта?{' '}
+          <a href="/register" className="text-blue-600 font-medium hover:underline">
+            Зарегистрироваться
+          </a>
         </p>
       </form>
     </div>

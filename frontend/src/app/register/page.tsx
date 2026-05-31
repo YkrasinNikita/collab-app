@@ -2,6 +2,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { FiEye, FiEyeOff } from 'react-icons/fi';
 
 export default function RegisterPage() {
   const [email, setEmail] = useState('');
@@ -39,17 +40,15 @@ export default function RegisterPage() {
   };
 
   const handleConfirmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setConfirmPassword(value);
-    setPasswordMatch(value === password);
+    const val = e.target.value;
+    setConfirmPassword(val);
+    setPasswordMatch(val === password);
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setPassword(value);
-    if (confirmPassword) {
-      setPasswordMatch(value === confirmPassword);
-    }
+    const val = e.target.value;
+    setPassword(val);
+    if (confirmPassword) setPasswordMatch(val === confirmPassword);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,78 +72,72 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded shadow-md w-96">
-        <h1 className="text-2xl mb-4 font-bold">Регистрация</h1>
-        <input
-          className="w-full mb-3 p-2 border rounded"
-          placeholder="Имя"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <div className="relative mb-3">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md space-y-4">
+        <h1 className="text-3xl font-bold text-center text-gray-800">Регистрация</h1>
+        <div>
+          <label className="block text-sm font-medium text-gray-600 mb-1">Имя</label>
           <input
-            className="w-full p-2 border rounded"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+        </div>
+        <div className="relative">
+          <label className="block text-sm font-medium text-gray-600 mb-1">Email</label>
+          <input
             type="email"
-            placeholder="Email"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={email}
             onChange={handleEmailChange}
             required
           />
-          {emailStatus === 'checking' && <span className="absolute right-2 top-2 text-gray-400 text-sm">⏳</span>}
-          {emailStatus === 'free' && <span className="absolute right-2 top-2 text-green-600 text-sm">✔ свободен</span>}
-          {emailStatus === 'taken' && <span className="absolute right-2 top-2 text-red-600 text-sm">✖ занят</span>}
+          {emailStatus === 'checking' && <span className="absolute right-2 top-9 text-gray-400 text-sm">⏳</span>}
+          {emailStatus === 'free' && <span className="absolute right-2 top-9 text-green-500 text-sm">✔ свободен</span>}
+          {emailStatus === 'taken' && <span className="absolute right-2 top-9 text-red-500 text-sm">✖ занят</span>}
         </div>
-        <div className="relative mb-3">
+        <div className="relative">
+          <label className="block text-sm font-medium text-gray-600 mb-1">Пароль</label>
           <input
             type={showPassword ? 'text' : 'password'}
-            className="w-full p-2 border rounded pr-10"
-            placeholder="Пароль"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={password}
             onChange={handlePasswordChange}
             required
           />
-          <button
-            type="button"
-            className="absolute right-2 top-2 text-gray-600"
-            onClick={() => setShowPassword(!showPassword)}
-          >
-            {showPassword ? '🙈' : '👁️'}
+          <button type="button" className="absolute right-3 top-9 text-gray-500" onClick={() => setShowPassword(!showPassword)}>
+            {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
           </button>
         </div>
-        <div className="relative mb-3">
+        <div className="relative">
+          <label className="block text-sm font-medium text-gray-600 mb-1">Подтверждение пароля</label>
           <input
             type={showConfirm ? 'text' : 'password'}
-            className="w-full p-2 border rounded pr-10"
-            placeholder="Подтвердите пароль"
+            className="w-full border border-gray-300 rounded-lg px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={confirmPassword}
             onChange={handleConfirmChange}
             required
           />
-          <button
-            type="button"
-            className="absolute right-2 top-2 text-gray-600"
-            onClick={() => setShowConfirm(!showConfirm)}
-          >
-            {showConfirm ? '🙈' : '👁️'}
+          <button type="button" className="absolute right-3 top-9 text-gray-500" onClick={() => setShowConfirm(!showConfirm)}>
+            {showConfirm ? <FiEyeOff size={18} /> : <FiEye size={18} />}
           </button>
           {confirmPassword && (
-            <span className={`absolute right-10 top-2 text-sm ${passwordMatch ? 'text-green-600' : 'text-red-600'}`}>
+            <span className={`absolute right-10 top-9 text-sm ${passwordMatch ? 'text-green-500' : 'text-red-500'}`}>
               {passwordMatch ? '✔' : '✖'}
             </span>
           )}
         </div>
-        {errorMsg && <p className="text-red-500 text-sm mb-2">{errorMsg}</p>}
+        {errorMsg && <p className="text-red-500 text-sm">{errorMsg}</p>}
         <button
           type="submit"
-          className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 disabled:opacity-50"
+          className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-2 rounded-lg font-semibold hover:shadow-lg transition"
           disabled={emailStatus === 'taken'}
         >
           Зарегистрироваться
         </button>
-        <p className="mt-3 text-center">
-          Уже есть аккаунт? <a href="/login" className="text-blue-500">Войти</a>
+        <p className="text-center text-sm text-gray-500">
+          Уже есть аккаунт? <a href="/login" className="text-blue-600 font-medium hover:underline">Войти</a>
         </p>
       </form>
     </div>

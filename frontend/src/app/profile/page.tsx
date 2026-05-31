@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import Toast from '@/components/Toast';
+import { FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiArrowLeft } from 'react-icons/fi';
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -103,101 +104,103 @@ export default function ProfilePage() {
   if (!user) return <div className="p-4">Загрузка...</div>;
 
   return (
-    <div className="max-w-xl mx-auto p-4">
-      <button onClick={() => router.push('/dashboard')} className="text-blue-600 hover:underline mb-4">
-        ← Назад к документам
+    <div className="max-w-xl mx-auto p-4 md:p-6">
+      <button onClick={() => router.push('/dashboard')} className="flex items-center gap-2 text-blue-600 hover:underline mb-6">
+        <FiArrowLeft /> Назад к документам
       </button>
-      <h1 className="text-2xl font-bold mb-6">Личный кабинет</h1>
+      <h1 className="text-2xl font-bold mb-8 text-gray-800 dark:text-gray-100">Личный кабинет</h1>
 
-      <div className="mb-8 border p-4 rounded">
-        <h2 className="text-lg font-semibold mb-3">Основные данные</h2>
-        <div className="mb-3">
-          <label className="block text-sm text-gray-600">Имя</label>
-          <input
-            className="w-full border p-2 rounded"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
+      {/* Основные данные */}
+      <div className="mb-8 bg-white dark:bg-gray-800 rounded-xl shadow p-6">
+        <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Основные данные</h2>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Имя</label>
+          <div className="relative">
+            <FiUser className="absolute left-3 top-3 text-gray-400" />
+            <input
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-10 pr-4 py-2 bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
         </div>
-        <div className="mb-3 relative">
-          <label className="block text-sm text-gray-600">Email</label>
-          <input
-            className="w-full border p-2 rounded"
-            type="email"
-            value={email}
-            onChange={handleEmailChange}
-          />
-          {emailStatus === 'checking' && <span className="absolute right-2 top-8 text-gray-400">⏳</span>}
-          {emailStatus === 'free' && <span className="absolute right-2 top-8 text-green-600">✔</span>}
-          {emailStatus === 'taken' && <span className="absolute right-2 top-8 text-red-600">✖ занят</span>}
+        <div className="mb-4 relative">
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Email</label>
+          <div className="relative">
+            <FiMail className="absolute left-3 top-3 text-gray-400" />
+            <input
+              type="email"
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-10 pr-16 py-2 bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={email}
+              onChange={handleEmailChange}
+            />
+            {emailStatus === 'checking' && <span className="absolute right-3 top-2 text-gray-400">⏳</span>}
+            {emailStatus === 'free' && <span className="absolute right-3 top-2 text-green-500">✔</span>}
+            {emailStatus === 'taken' && <span className="absolute right-3 top-2 text-red-500">✖</span>}
+          </div>
         </div>
-        <button
-          onClick={saveProfile}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
+        <button onClick={saveProfile} className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 rounded-lg transition">
           Сохранить изменения
         </button>
       </div>
 
-      <div className="border p-4 rounded">
-        <h2 className="text-lg font-semibold mb-3">Сменить пароль</h2>
-        <div className="relative mb-3">
-          <label className="block text-sm text-gray-600">Текущий пароль</label>
-          <input
-            type={showCurrent ? 'text' : 'password'}
-            className="w-full border p-2 rounded pr-10"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-          />
-          <button
-            type="button"
-            className="absolute right-2 top-7 text-gray-600"
-            onClick={() => setShowCurrent(!showCurrent)}
-          >
-            {showCurrent ? '🙈' : '👁️'}
-          </button>
+      {/* Смена пароля */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
+        <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Сменить пароль</h2>
+        <div className="mb-4 relative">
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Текущий пароль</label>
+          <div className="relative">
+            <FiLock className="absolute left-3 top-3 text-gray-400" />
+            <input
+              type={showCurrent ? 'text' : 'password'}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-10 pr-10 py-2 bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
+            <button type="button" className="absolute right-3 top-3 text-gray-500" onClick={() => setShowCurrent(!showCurrent)}>
+              {showCurrent ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+            </button>
+          </div>
         </div>
-        <div className="relative mb-3">
-          <label className="block text-sm text-gray-600">Новый пароль</label>
-          <input
-            type={showNew ? 'text' : 'password'}
-            className="w-full border p-2 rounded pr-10"
-            value={newPassword}
-            onChange={handleNewPasswordChange}
-          />
-          <button
-            type="button"
-            className="absolute right-2 top-7 text-gray-600"
-            onClick={() => setShowNew(!showNew)}
-          >
-            {showNew ? '🙈' : '👁️'}
-          </button>
+        <div className="mb-4 relative">
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Новый пароль</label>
+          <div className="relative">
+            <FiLock className="absolute left-3 top-3 text-gray-400" />
+            <input
+              type={showNew ? 'text' : 'password'}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-10 pr-10 py-2 bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={newPassword}
+              onChange={handleNewPasswordChange}
+            />
+            <button type="button" className="absolute right-3 top-3 text-gray-500" onClick={() => setShowNew(!showNew)}>
+              {showNew ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+            </button>
+          </div>
         </div>
-        <div className="relative mb-3">
-          <label className="block text-sm text-gray-600">Подтверждение нового пароля</label>
-          <input
-            type={showConfirm ? 'text' : 'password'}
-            className="w-full border p-2 rounded pr-10"
-            value={confirmPassword}
-            onChange={handleConfirmPasswordChange}
-          />
-          <button
-            type="button"
-            className="absolute right-2 top-7 text-gray-600"
-            onClick={() => setShowConfirm(!showConfirm)}
-          >
-            {showConfirm ? '🙈' : '👁️'}
-          </button>
+        <div className="mb-4 relative">
+          <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Подтверждение нового пароля</label>
+          <div className="relative">
+            <FiLock className="absolute left-3 top-3 text-gray-400" />
+            <input
+              type={showConfirm ? 'text' : 'password'}
+              className="w-full border border-gray-300 dark:border-gray-600 rounded-lg pl-10 pr-10 py-2 bg-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={confirmPassword}
+              onChange={handleConfirmPasswordChange}
+            />
+            <button type="button" className="absolute right-3 top-3 text-gray-500" onClick={() => setShowConfirm(!showConfirm)}>
+              {showConfirm ? <FiEyeOff size={18} /> : <FiEye size={18} />}
+            </button>
+          </div>
           {confirmPassword && (
-            <span className={`absolute right-10 top-7 text-sm ${passwordMatch ? 'text-green-600' : 'text-red-600'}`}>
-              {passwordMatch ? '✔' : '✖'}
+            <span className={`text-sm ${passwordMatch ? 'text-green-500' : 'text-red-500'}`}>
+              {passwordMatch ? '✔ Пароли совпадают' : '✖ Пароли не совпадают'}
             </span>
           )}
         </div>
         <button
           onClick={changePassword}
-          className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
           disabled={!currentPassword || !newPassword || !confirmPassword || passwordMatch === false}
+          className="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-2 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Изменить пароль
         </button>

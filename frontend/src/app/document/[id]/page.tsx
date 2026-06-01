@@ -9,13 +9,14 @@ import RichTextEditor from '@/components/RichTextEditor';
 import UserSearchInput from '@/components/UserSearchInput';
 import CollaboratorsManager from '@/components/CollaboratorsManager';
 import DOMPurify from 'dompurify';
-import type { Node, Edge } from '@xyflow/react';
 import { io, Socket } from 'socket.io-client';
+import type { Node, Edge } from '@xyflow/react';
 
 const MindMapEditor = dynamic(() => import('@/components/MindMapEditor'), { ssr: false });
 
 interface Comment {
   _id: string;
+  documentId?: string;   // <-- добавить эту строку
   userId: string;
   userName: string;
   text: string;
@@ -49,11 +50,12 @@ export default function DocumentPage() {
 
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 
-  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Сокет
   const [socket, setSocket] = useState<Socket | null>(null);
   const [refreshParticipants, setRefreshParticipants] = useState(0);
+
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Флаг для предотвращения повторной отправки событий, полученных по сокету
+  const receivingUpdate = useRef(false);
 
   useEffect(() => {
     if (!id) return;
@@ -61,35 +63,72 @@ export default function DocumentPage() {
     loadProfile();
   }, [id, type]);
 
-  // Подключение к сокету при наличии id и currentUserId
   useEffect(() => {
     if (!id || !currentUserId) return;
-    const token = localStorage.getItem('accessToken');
-    const newSocket = io('http://localhost:4003', { auth: { token } });
+    const newSocket = io('http://localhost:4003', {
+      auth: { token: localStorage.getItem('accessToken') },
+    });
     setSocket(newSocket);
     newSocket.emit('join_document', id);
 
-    newSocket.on('content_updated', (data: { content: string; userId: string }) => {
+    newSocket.on('content_updated', (data: { content?: string; nodes?: Node[]; edges?: Edge[]; userId: string }) => {
       if (data.userId !== currentUserId) {
-        setContent(data.content);
+        receivingUpdate.current = true;
+        if (data.content !== undefined) {
+          setContent(data.content);
+        }
+        if (data.nodes && data.edges) {
+          setNodes(data.nodes);
+          setEdges(data.edges);
+        }
+        // Через короткое время сбрасываем флаг, чтобы наши собственные изменения снова отправлялись
+        setTimeout(() => { receivingUpdate.current = false; }, 100);
       }
     });
+
     newSocket.on('title_updated', (data: { title: string; userId: string }) => {
       if (data.userId !== currentUserId) {
         setTitle(data.title);
-        setDoc((prev: any) => prev ? { ...prev, title: data.title } : null);
+        setDoc((prev: any) => (prev ? { ...prev, title: data.title } : null));
       }
     });
+
     newSocket.on('participants_updated', () => {
-      setRefreshParticipants(p => p + 1);
+      setRefreshParticipants((p) => p + 1);
+      api
+        .get(`/shares/check/${id}?type=${type}`)
+        .then((res) => {
+          const isOwner = doc?.owner === currentUserId;
+          if (isOwner) {
+            setPermission('edit');
+          } else {
+            setPermission(res.data.permission);
+          }
+        })
+        .catch(console.error);
     });
+
+    newSocket.on('role_changed', (data: { userId: string; permission: string; documentId: string }) => {
+      if (data.userId === currentUserId && data.documentId === id) {
+        setPermission(data.permission);
+      }
+    });
+
     newSocket.on('kicked_from_document', (data: { userId: string; documentId: string }) => {
       if (data.userId === currentUserId && data.documentId === id) {
         window.location.href = '/dashboard';
       }
     });
+
     newSocket.on('document_deleted', () => {
       window.location.href = '/dashboard';
+    });
+
+    // Слушатель новых комментариев
+    newSocket.on('comment_added', (comment: Comment) => {
+      if (comment.documentId === id) {
+        setComments((prev) => [...prev, comment]);
+      }
     });
 
     return () => {
@@ -103,7 +142,9 @@ export default function DocumentPage() {
       const { data } = await api.get('/auth/me');
       setCurrentUserName(data.name);
       setCurrentUserId(data._id);
-    } catch (e) { console.error('Failed to load profile', e); }
+    } catch (e) {
+      console.error('Failed to load profile', e);
+    }
   };
 
   const loadData = async () => {
@@ -136,13 +177,13 @@ export default function DocumentPage() {
     }
   };
 
-  // Автосохранение
+  // Автосохранение с уменьшенной задержкой (500 мс)
   useEffect(() => {
     if (permission !== 'edit') return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
       performSave(false);
-    }, 3000);
+    }, 1000);
     return () => {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     };
@@ -152,16 +193,31 @@ export default function DocumentPage() {
     if (permission !== 'edit') return;
     try {
       setSaving(true);
-      const payload = type === 'document' ? { content: DOMPurify.sanitize(content) } : { nodes, edges };
+      const payload =
+        type === 'document'
+          ? { content: DOMPurify.sanitize(content) }
+          : { nodes, edges };
       const endpoint = type === 'document' ? `/documents/${id}` : `/mindmaps/${id}`;
       await api.put(endpoint, payload);
       if (showToast) setToastMessage('Сохранено');
 
-      // Отправляем событие изменения контента
-      if (socket && type === 'document') {
-        socket.emit('content_updated', { documentId: id, content: payload.content, userId: currentUserId });
+      // Отправка сокет-события (только если это изменение не было получено по сокету)
+      if (socket && !receivingUpdate.current) {
+        if (type === 'document') {
+          socket.emit('content_updated', {
+            documentId: id,
+            content: payload.content,
+            userId: currentUserId,
+          });
+        } else {
+          socket.emit('content_updated', {
+            documentId: id,
+            nodes: payload.nodes,
+            edges: payload.edges,
+            userId: currentUserId,
+          });
+        }
       }
-      // для mindmap можно аналогично, но пока оставим просто контент
     } catch (e: any) {
       if (showToast) setToastMessage('Ошибка сохранения');
     } finally {
@@ -171,11 +227,28 @@ export default function DocumentPage() {
 
   const handleSave = () => performSave(true);
 
+  // Мгновенная отправка изменений карты (без ожидания автосохранения)
+  const handleMindMapChange = useCallback(
+    (newNodes: Node[], newEdges: Edge[]) => {
+      setNodes(newNodes);
+      setEdges(newEdges);
+      // Отправляем событие сразу, чтобы другие участники видели изменения
+      if (socket && !receivingUpdate.current) {
+        socket.emit('content_updated', {
+          documentId: id,
+          nodes: newNodes,
+          edges: newEdges,
+          userId: currentUserId,
+        });
+      }
+    },
+    [socket, currentUserId, id, receivingUpdate],
+  );
+
   const confirmDelete = async () => {
     try {
       const endpoint = type === 'document' ? `/documents/${id}` : `/mindmaps/${id}`;
       await api.delete(endpoint);
-      // Редирект не нужен – сокет выкинет, но на всякий случай:
       window.location.href = '/dashboard';
     } catch (e: any) {
       setToastMessage('Ошибка при удалении');
@@ -207,15 +280,15 @@ export default function DocumentPage() {
 
   const addComment = async () => {
     if (!newComment.trim()) return;
-    await api.post(`/comments/${id}`, { text: newComment, userName: currentUserName });
-    setNewComment('');
-    loadData();
+    try {
+      const { data } = await api.post(`/comments/${id}`, { text: newComment, userName: currentUserName });
+      // Комментарий будет добавлен в список через сокет (comment_added), но на всякий случай добавим локально
+      setComments((prev) => [...prev, data]);
+      setNewComment('');
+    } catch (e: any) {
+      setToastMessage('Ошибка при добавлении комментария');
+    }
   };
-
-  const handleMindMapChange = useCallback((newNodes: Node[], newEdges: Edge[]) => {
-    setNodes(newNodes);
-    setEdges(newEdges);
-  }, []);
 
   const handleBack = async () => {
     await performSave(false);
@@ -230,10 +303,14 @@ export default function DocumentPage() {
     setEditingTitle(false);
     if (permission !== 'edit' || title.trim() === doc.title) return;
     try {
-      await api.put(type === 'document' ? `/documents/${id}` : `/mindmaps/${id}`, { title });
+      await api.put(
+        type === 'document' ? `/documents/${id}` : `/mindmaps/${id}`,
+        { title },
+      );
       setDoc({ ...doc, title });
-      // Отправляем событие изменения заголовка
-      socket?.emit('title_updated', { documentId: id, title, userId: currentUserId });
+      if (socket) {
+        socket.emit('title_updated', { documentId: id, title, userId: currentUserId });
+      }
     } catch {
       setTitle(doc.title);
       setToastMessage('Не удалось переименовать');
@@ -278,7 +355,7 @@ export default function DocumentPage() {
           editingTitle ? (
             <input
               ref={titleInputRef}
-              className="text-2xl font-bold w-full border-b-2 border-blue-500 outline-none bg-transparent"
+              className="text-2xl font-bold w-full border-b-2 border-blue-500 outline-none bg-transparent dark:text-white"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               onBlur={saveTitle}
@@ -286,14 +363,14 @@ export default function DocumentPage() {
             />
           ) : (
             <h1
-              className="text-2xl font-bold cursor-pointer hover:bg-gray-100 rounded p-1"
+              className="text-2xl font-bold cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 rounded p-1 dark:text-white"
               onClick={startEditingTitle}
             >
               {title}
             </h1>
           )
         ) : (
-          <h1 className="text-2xl font-bold">{title}</h1>
+          <h1 className="text-2xl font-bold dark:text-white">{title}</h1>
         )}
       </div>
       {canView ? (
@@ -348,11 +425,11 @@ export default function DocumentPage() {
           )}
 
           <div className="mt-6">
-            <h2 className="text-xl font-semibold mb-2">Комментарии</h2>
+            <h2 className="text-xl font-semibold mb-2 dark:text-white">Комментарии</h2>
             {canComment && (
               <div className="flex gap-2 mb-3">
                 <input
-                  className="flex-1 p-2 border rounded"
+                  className="flex-1 p-2 border rounded dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
                   placeholder="Ваш комментарий"
@@ -364,18 +441,19 @@ export default function DocumentPage() {
             )}
             <div className="space-y-2">
               {comments.map((c) => (
-                <div key={c._id} className="border-b py-1">
-                  <strong>{c.userName}</strong> ({new Date(c.createdAt).toLocaleString()}): {c.text}
+                <div key={c._id} className="border-b py-1 dark:border-gray-700">
+                  <strong className="dark:text-gray-300">{c.userName}</strong> <span className="text-xs text-gray-500 dark:text-gray-400">({new Date(c.createdAt).toLocaleString()})</span>: <span className="dark:text-gray-200">{c.text}</span>
                 </div>
               ))}
             </div>
           </div>
 
+          {/* Модальные окна (без изменений) */}
           <Modal open={shareModalOpen} onClose={() => setShareModalOpen(false)} title="Пригласить пользователя">
             <UserSearchInput onSelect={(user) => setShareUser(user)} />
-            {shareUser && <p className="text-sm mb-2">Выбран: {shareUser.email}</p>}
+            {shareUser && <p className="text-sm mb-2 dark:text-gray-300">Выбран: {shareUser.email}</p>}
             <select
-              className="w-full border p-2 mb-4 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 border-gray-300 dark:border-gray-600"
+              className="w-full border p-2 mb-4 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-200"
               value={sharePermission}
               onChange={(e) => setSharePermission(e.target.value)}
             >
@@ -387,17 +465,17 @@ export default function DocumentPage() {
               <button onClick={handleShare} disabled={!shareUser} className="flex-1 bg-blue-500 text-white p-2 rounded disabled:opacity-50">
                 Отправить приглашение
               </button>
-              <button onClick={() => setShareModalOpen(false)} className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-200 p-2 rounded">
+              <button onClick={() => setShareModalOpen(false)} className="flex-1 bg-gray-300 dark:bg-gray-600 p-2 rounded dark:text-white">
                 Отмена
               </button>
             </div>
           </Modal>
 
           <Modal open={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="Удалить документ?">
-            <p className="mb-4 text-gray-900 dark:text-gray-200">Это действие нельзя отменить.</p>
+            <p className="mb-4 dark:text-gray-300">Это действие нельзя отменить.</p>
             <div className="flex gap-2">
               <button onClick={confirmDelete} className="flex-1 bg-red-500 text-white p-2 rounded">Удалить</button>
-              <button onClick={() => setDeleteModalOpen(false)} className="flex-1 bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-200 p-2 rounded">Отмена</button>
+              <button onClick={() => setDeleteModalOpen(false)} className="flex-1 bg-gray-300 dark:bg-gray-600 p-2 rounded dark:text-white">Отмена</button>
             </div>
           </Modal>
 

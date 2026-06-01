@@ -6,10 +6,17 @@ const logger = require('../logger');
 const router = express.Router();
 router.use(auth);
 
+// POST / – создание доступа (оставлено для обратной совместимости)
 router.post('/', async (req, res) => {
   try {
     const { documentId, documentType, sharedWithEmail, permission } = req.body;
-    const share = new Share({ documentId, documentType, ownerId: req.userId, sharedWith: sharedWithEmail, permission });
+    const share = new Share({
+      documentId,
+      documentType,
+      ownerId: req.userId,
+      sharedWith: sharedWithEmail,
+      permission,
+    });
     await share.save();
     res.status(201).json(share);
   } catch (err) {
@@ -18,6 +25,7 @@ router.post('/', async (req, res) => {
   }
 });
 
+// GET /document/:documentId – список участников (для всех, у кого есть доступ)
 router.get('/document/:documentId', async (req, res) => {
   try {
     const shares = await Share.find({ documentId: req.params.documentId });
@@ -28,16 +36,23 @@ router.get('/document/:documentId', async (req, res) => {
   }
 });
 
+// GET /check/:documentId – проверка прав текущего пользователя
 router.get('/check/:documentId', async (req, res) => {
   try {
-    const share = await Share.findOne({ documentId: req.params.documentId, sharedWith: req.userId });
+    const share = await Share.findOne({
+      documentId: req.params.documentId,
+      sharedWith: req.userId,
+    });
     if (!share) {
+      // Проверяем, не владелец ли
       try {
         const docType = req.query.type || 'document';
-        const docServiceUrl = process.env.DOCUMENTS_SERVICE_URL || 'http://documents-service:4002';
-        const response = await axios.get(`${docServiceUrl}/api/${docType}s/${req.params.documentId}`, {
-          headers: { Authorization: req.headers.authorization }
-        });
+        const docServiceUrl =
+          process.env.DOCUMENTS_SERVICE_URL || 'http://documents-service:4002';
+        const response = await axios.get(
+          `${docServiceUrl}/api/${docType}s/${req.params.documentId}`,
+          { headers: { Authorization: req.headers.authorization } }
+        );
         const doc = response.data;
         if (doc.owner === req.userId) return res.json({ permission: 'edit' });
       } catch (e) {}
@@ -50,9 +65,12 @@ router.get('/check/:documentId', async (req, res) => {
   }
 });
 
+// GET /my – все документы, к которым у текущего пользователя есть доступ
 router.get('/my', async (req, res) => {
   try {
-    const shares = await Share.find({ sharedWith: req.userId }).select('documentId documentType permission');
+    const shares = await Share.find({ sharedWith: req.userId }).select(
+      'documentId documentType permission'
+    );
     res.json(shares);
   } catch (err) {
     logger.error({ err }, 'Ошибка получения своих доступов');
@@ -60,6 +78,7 @@ router.get('/my', async (req, res) => {
   }
 });
 
+// PUT /:id – изменение прав (только владелец)
 router.put('/:id', async (req, res) => {
   try {
     const { permission } = req.body;
@@ -68,8 +87,18 @@ router.put('/:id', async (req, res) => {
       { permission },
       { new: true }
     );
-    if (!share) return res.status(404).json({ message: 'Доступ не найден или вы не владелец' });
+    if (!share)
+      return res
+        .status(404)
+        .json({ message: 'Доступ не найден или вы не владелец' });
+    // Уведомляем комнату об обновлении участников
     req.io.to(share.documentId).emit('participants_updated');
+    // Уведомляем пользователя о смене его роли
+    req.io.to(share.documentId).emit('role_changed', {
+      userId: share.sharedWith,
+      permission: share.permission,
+      documentId: share.documentId,
+    });
     res.json(share);
   } catch (err) {
     logger.error({ err }, 'Ошибка изменения прав');
@@ -77,12 +106,24 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// DELETE /:id – удаление доступа (только владелец)
 router.delete('/:id', async (req, res) => {
   try {
-    const share = await Share.findOneAndDelete({ _id: req.params.id, ownerId: req.userId });
-    if (!share) return res.status(404).json({ message: 'Доступ не найден или вы не владелец' });
+    const share = await Share.findOneAndDelete({
+      _id: req.params.id,
+      ownerId: req.userId,
+    });
+    if (!share)
+      return res
+        .status(404)
+        .json({ message: 'Доступ не найден или вы не владелец' });
+    // Уведомляем комнату об обновлении участников
     req.io.to(share.documentId).emit('participants_updated');
-    req.io.to(share.documentId).emit('kicked_from_document', { userId: share.sharedWith, documentId: share.documentId });
+    // Уведомляем удалённого пользователя, что его выгнали
+    req.io.to(share.documentId).emit('kicked_from_document', {
+      userId: share.sharedWith,
+      documentId: share.documentId,
+    });
     res.json({ message: 'Доступ удалён' });
   } catch (err) {
     logger.error({ err }, 'Ошибка удаления доступа');

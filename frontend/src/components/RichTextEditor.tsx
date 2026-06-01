@@ -1,11 +1,6 @@
 'use client';
 import { useRef, useEffect, useState, useCallback } from 'react';
 import DOMPurify from 'dompurify';
-import {
-  FiBold, FiItalic, FiUnderline,
-  FiAlignLeft, FiAlignCenter, FiAlignRight,
-  FiList, FiClipboard
-} from 'react-icons/fi';
 
 interface RichTextEditorProps {
   content: string;
@@ -15,8 +10,21 @@ interface RichTextEditorProps {
 
 export default function RichTextEditor({ content, onChange, editable }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
-  const [currentFontSize, setCurrentFontSize] = useState('16');
-  const [currentFontName, setCurrentFontName] = useState('Arial');
+  const [activeStyles, setActiveStyles] = useState<{
+    bold: boolean;
+    italic: boolean;
+    underline: boolean;
+    justifyLeft: boolean;
+    justifyCenter: boolean;
+    justifyRight: boolean;
+  }>({
+    bold: false,
+    italic: false,
+    underline: false,
+    justifyLeft: true,
+    justifyCenter: false,
+    justifyRight: false,
+  });
 
   useEffect(() => {
     if (editorRef.current && editorRef.current.innerHTML !== content) {
@@ -31,78 +39,87 @@ export default function RichTextEditor({ content, onChange, editable }: RichText
     }
   };
 
+  const updateActiveStyles = useCallback(() => {
+    if (!editable) return;
+    const b = document.queryCommandState('bold');
+    const i = document.queryCommandState('italic');
+    const u = document.queryCommandState('underline');
+    const jl = document.queryCommandState('justifyLeft');
+    const jc = document.queryCommandState('justifyCenter');
+    const jr = document.queryCommandState('justifyRight');
+    setActiveStyles({
+      bold: b,
+      italic: i,
+      underline: u,
+      justifyLeft: jl,
+      justifyCenter: jc,
+      justifyRight: jr,
+    });
+  }, [editable]);
+
+  useEffect(() => {
+    if (!editable) return;
+    document.addEventListener('selectionchange', updateActiveStyles);
+    return () => document.removeEventListener('selectionchange', updateActiveStyles);
+  }, [editable, updateActiveStyles]);
+
   const executeCommand = (command: string, value?: string) => {
     if (!editable) return;
     document.execCommand(command, false, value);
-    editorRef.current?.focus();
-    handleInput();
-  };
-
-  const applyStyle = (property: string, value: string) => {
-    if (!editable) return;
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-    const range = selection.getRangeAt(0);
-    if (range.collapsed) return;
-    const span = document.createElement('span');
-    span.style.setProperty(property, value);
-    try {
-      range.surroundContents(span);
-    } catch {
-      const fragment = range.extractContents();
-      span.appendChild(fragment);
-      range.insertNode(span);
+    if (editorRef.current) {
+      editorRef.current.focus();
+      handleInput();
+      updateActiveStyles();
     }
-    selection.removeAllRanges();
-    selection.addRange(range);
-    handleInput();
-  };
-
-  const handleFontSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setCurrentFontSize(e.target.value);
-    applyStyle('font-size', e.target.value + 'px');
-  };
-
-  const handleFontNameChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setCurrentFontName(e.target.value);
-    applyStyle('font-family', e.target.value);
-  };
-
-  const insertChecklist = () => {
-    if (!editable) return;
-    const html = '<div style="display:flex; align-items:center; gap:8px;"><input type="checkbox" style="margin:0;" /><span>Новая задача</span></div>';
-    document.execCommand('insertHTML', false, html);
-    handleInput();
-  };
-
-  const handlePaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const text = e.clipboardData.getData('text/plain');
-    document.execCommand('insertHTML', false, text);
-    handleInput();
   };
 
   return (
-    <div className="border border-gray-300 dark:border-gray-600 rounded-xl overflow-hidden">
+    <div className="border rounded dark:border-gray-600">
       {editable && (
-        <div className="flex flex-wrap gap-1 p-2 border-b border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-900">
-          <button onClick={() => executeCommand('bold')} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700" title="Жирный"><FiBold size={14} /></button>
-          <button onClick={() => executeCommand('italic')} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700" title="Курсив"><FiItalic size={14} /></button>
-          <button onClick={() => executeCommand('underline')} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700" title="Подчёркнутый"><FiUnderline size={14} /></button>
-          <input type="color" onChange={(e) => executeCommand('foreColor', e.target.value)} className="w-6 h-6 p-0 border cursor-pointer" title="Цвет текста" />
-          <input type="color" onChange={(e) => executeCommand('backColor', e.target.value)} className="w-6 h-6 p-0 border cursor-pointer" title="Цвет фона" />
-          <select value={currentFontSize} onChange={handleFontSizeChange} className="bg-transparent border border-gray-300 dark:border-gray-600 rounded text-sm px-1 h-8">
-            {[8,10,12,14,16,18,20,24,28,32,36,48].map(size => <option key={size} value={size}>{size}</option>)}
-          </select>
-          <select value={currentFontName} onChange={handleFontNameChange} className="bg-transparent border border-gray-300 dark:border-gray-600 rounded text-sm px-1 h-8">
-            {['Arial','Times New Roman','Courier New','Georgia','Verdana','Comic Sans MS'].map(font => <option key={font} value={font}>{font}</option>)}
-          </select>
-          <button onClick={() => executeCommand('justifyLeft')} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700" title="По левому краю"><FiAlignLeft size={14} /></button>
-          <button onClick={() => executeCommand('justifyCenter')} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700" title="По центру"><FiAlignCenter size={14} /></button>
-          <button onClick={() => executeCommand('justifyRight')} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700" title="По правому краю"><FiAlignRight size={14} /></button>
-          <button onClick={() => executeCommand('insertUnorderedList')} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700" title="Маркированный список"><FiList size={14} /></button>
-          <button onClick={() => executeCommand('insertOrderedList')} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700" title="Нумерованный список"><FiList size={14} />1.</button>
-          <button onClick={insertChecklist} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-700" title="Чек-лист"><FiClipboard size={14} /></button>
+        <div className="flex flex-wrap gap-1 p-2 border-b bg-gray-50 dark:bg-gray-700 dark:border-gray-600">
+          <button
+            onClick={() => executeCommand('bold')}
+            className={`px-2 py-1 rounded ${activeStyles.bold ? 'bg-blue-200 dark:bg-blue-800' : 'bg-gray-200 dark:bg-gray-600'} hover:bg-gray-300 dark:hover:bg-gray-500 dark:text-gray-200`}
+            title="Жирный"
+          >
+            <b>B</b>
+          </button>
+          <button
+            onClick={() => executeCommand('italic')}
+            className={`px-2 py-1 rounded ${activeStyles.italic ? 'bg-blue-200 dark:bg-blue-800' : 'bg-gray-200 dark:bg-gray-600'} hover:bg-gray-300 dark:hover:bg-gray-500 dark:text-gray-200`}
+            title="Курсив"
+          >
+            <i>I</i>
+          </button>
+          <button
+            onClick={() => executeCommand('underline')}
+            className={`px-2 py-1 rounded ${activeStyles.underline ? 'bg-blue-200 dark:bg-blue-800' : 'bg-gray-200 dark:bg-gray-600'} hover:bg-gray-300 dark:hover:bg-gray-500 dark:text-gray-200`}
+            title="Подчёркнутый"
+          >
+            <u>U</u>
+          </button>
+
+          <button
+            onClick={() => executeCommand('justifyLeft')}
+            className={`px-2 py-1 rounded ${activeStyles.justifyLeft ? 'bg-blue-200 dark:bg-blue-800' : 'bg-gray-200 dark:bg-gray-600'} hover:bg-gray-300 dark:hover:bg-gray-500 dark:text-gray-200`}
+            title="По левому краю"
+          >
+            ⇤
+          </button>
+          <button
+            onClick={() => executeCommand('justifyCenter')}
+            className={`px-2 py-1 rounded ${activeStyles.justifyCenter ? 'bg-blue-200 dark:bg-blue-800' : 'bg-gray-200 dark:bg-gray-600'} hover:bg-gray-300 dark:hover:bg-gray-500 dark:text-gray-200`}
+            title="По центру"
+          >
+            ⇔
+          </button>
+          <button
+            onClick={() => executeCommand('justifyRight')}
+            className={`px-2 py-1 rounded ${activeStyles.justifyRight ? 'bg-blue-200 dark:bg-blue-800' : 'bg-gray-200 dark:bg-gray-600'} hover:bg-gray-300 dark:hover:bg-gray-500 dark:text-gray-200`}
+            title="По правому краю"
+          >
+            ⇥
+          </button>
         </div>
       )}
       <div
@@ -110,8 +127,11 @@ export default function RichTextEditor({ content, onChange, editable }: RichText
         contentEditable={editable}
         suppressContentEditableWarning
         onInput={handleInput}
-        onPaste={handlePaste}
-        className={`p-4 min-h-[300px] outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 ${editable ? '' : 'bg-gray-100 dark:bg-gray-800/50'}`}
+        className={`p-3 min-h-[300px] outline-none ${
+          editable
+            ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200'
+            : 'bg-gray-100 dark:bg-gray-900 text-gray-500 dark:text-gray-400'
+        }`}
         style={{ whiteSpace: 'pre-wrap' }}
       />
     </div>
